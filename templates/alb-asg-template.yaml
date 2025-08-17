@@ -1,1 +1,91 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+Simple CloudFormation stack to create Launch Template, ALB, Target Group, and ASG 
+in the default VPC and subnets.
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::Demo Key Pair
+    Description: Name of an existing EC2 key pairto SSH into instances
 
+Resources:
+  #Security Group for ALB
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for ALB
+      VpcId: !Ref AWS::DefaultVPC
+      SecurityGroupIngress:
+        IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+
+  #Security Group for EC2 Instances
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group For EC2 instances
+      VpcId: !Ref AWS::DefaultVpc
+      SecurityGroupIngress:
+        IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+  #Lanuch Template
+  MyLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: ami-0144277607031eca2
+        InstanceType: t3.micro
+        KeyName: !Ref KeyName
+        SecurityGroupIds:
+          - !Ref InstanceSecurityGroup
+        UserData:
+          Fn::Base64: |
+            #!/bin/bash
+            yum install -y httpd
+            systemctl enable httpd
+            systemctl start httpd
+            echo "<h1>Hello from EC2 in ASG via ALB</h1>" > /var/www/html/index.html
+
+  #Target Group
+  MyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref AWS::DefaultVpc
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckPath: /
+
+  #Listener
+  MyALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerARN: !Ref MyALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupARN: !Ref MyTargetGroup
+
+  #Auto Scaling Group
+  MyAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: !Ref AWS::DefaultSubnetIds
+      MinSize: "1"
+      MaxSize: "2"
+      DesiredCapacity: "1"
+      LaunchTemplates:
+        LaunchTemplateId: !Ref AWS::MyLaunchTemplate
+        Version: !GetAtt MyLaunchTemplate:LatestVersionNumber
+      TargetGroupARNs:
+        - !Ref MyTargetGroup
+  
+  Outputs:
+    ALBEndPoint:
+      Description: DNS Name of the ALB
+      Value: !GetAtt MyALB.DNSName
