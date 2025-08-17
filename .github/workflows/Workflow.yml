@@ -33,5 +33,5 @@ on:
         run: |
           aws cloudformation deploy \
           --stack-name my-demo-stack \
-          --template-file templates/vpc-template.yaml \
+          --template-file templates/alb-asg-template.yaml \
           --capabilities CAPABILITY_IAM
