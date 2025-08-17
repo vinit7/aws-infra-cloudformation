@@ -31,4 +31,3 @@ jobs:
             --stack-name my-alb-asg-stack \
             --template-file templates/alb-asg-template.yaml \
             --capabilities CAPABILITY_NAMED_IAM \
-            --parameter-overrides KeyName=your-keypair-name
