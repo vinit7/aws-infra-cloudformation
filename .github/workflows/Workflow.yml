@@ -21,7 +21,10 @@ jobs:
           aws-region: ap-south-1   # Change region if needed
 
       - name: Validate CloudFormation template
-        run: aws cloudformation validate-template --template-body file://templates/alb-asg-template.yaml
+        run: |
+          aws cloudformation validate-template \
+          --template-body file://templates/alb-asg-template.yaml
+        
       - name: Deploy CloudFormation stack
         run: |
           aws cloudformation deploy \
